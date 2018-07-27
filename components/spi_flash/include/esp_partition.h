@@ -122,6 +122,8 @@ typedef struct {
     bool encrypted;                     /*!< flag is set to true if partition is encrypted */
 } esp_partition_t;
 
+void esp_partition_reload_table();
+
 /**
  * @brief Find partition based on one or more parameters
  *
