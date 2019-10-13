@@ -152,7 +152,7 @@ class PartitionTable(list):
         # fix up missing offsets & negative sizes
         last_end = offset_part_table + PARTITION_TABLE_SIZE  # first offset after partition table
         for e in res:
-            if e.offset is not None and e.offset < last_end:
+            if not e.overlap and e.offset is not None and e.offset < last_end:
                 if e == res[0]:
                     raise InputError('CSV Error: First partition offset 0x%x overlaps end of partition table 0x%x'
                                      % (e.offset, last_end))
@@ -219,10 +219,10 @@ class PartitionTable(list):
         # check for overlaps
         last = None
         for p in sorted(self, key=lambda x:x.offset):
-            if p.offset < offset_part_table + PARTITION_TABLE_SIZE:
-                raise InputError('Partition offset 0x%x is below 0x%x' % (p.offset, offset_part_table + PARTITION_TABLE_SIZE))
-            if last is not None and p.offset < last.offset + last.size:
-                raise InputError('Partition at 0x%x overlaps 0x%x-0x%x' % (p.offset, last.offset, last.offset + last.size - 1))
+            if not p.overlap and p.offset < offset_part_table + PARTITION_TABLE_SIZE:
+                raise InputError("Partition offset 0x%x is below 0x%x" % (p.offset, offset_part_table + PARTITION_TABLE_SIZE))
+            if not p.overlap and last is not None and p.offset < last.offset + last.size:
+                raise InputError("Partition at 0x%x overlaps 0x%x-0x%x" % (p.offset, last.offset, last.offset + last.size - 1))
             last = p
 
     def flash_size(self):
@@ -282,7 +282,8 @@ class PartitionDefinition(object):
     # dictionary maps flag name (as used in CSV flags list, property name)
     # to bit set in flags words in binary format
     FLAGS = {
-        'encrypted': 0
+        'encrypted': 0,
+        'overlap': 16
     }
 
     # add subtypes for the 16 OTA slot values ("ota_XX, etc.")
@@ -296,6 +297,7 @@ class PartitionDefinition(object):
         self.offset = None
         self.size = None
         self.encrypted = False
+        self.overlap = False
 
     @classmethod
     def from_csv(cls, line, line_no):
