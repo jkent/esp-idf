@@ -841,7 +841,7 @@ esp_err_t i2c_set_pin(i2c_port_t i2c_num, int sda_io_num, int scl_io_num, bool s
     if (scl_io_num >= 0) {
         gpio_set_level(scl_io_num, I2C_IO_INIT_LEVEL);
         gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[scl_io_num], PIN_FUNC_GPIO);
-        gpio_set_direction(scl_io_num, GPIO_MODE_INPUT_OUTPUT_OD);
+        gpio_set_direction(scl_io_num, scl_io_num == GPIO_NUM_12 ? GPIO_MODE_INPUT_OUTPUT : GPIO_MODE_INPUT_OUTPUT_OD);
         esp_rom_gpio_connect_out_signal(scl_io_num, scl_out_sig, 0, 0);
         esp_rom_gpio_connect_in_signal(scl_io_num, scl_in_sig, 0);
         if (scl_pullup_en == GPIO_PULLUP_ENABLE) {
