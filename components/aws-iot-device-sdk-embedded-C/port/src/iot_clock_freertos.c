@@ -30,22 +30,12 @@
 /* Standard includes. */
 #include <stdlib.h>
 
+/* FreeRTOS includes. */
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/timers.h"
+
 /* POSIX includes. Allow the default POSIX headers to be overridden. */
-#ifdef POSIX_ERRNO_HEADER
-    #include POSIX_ERRNO_HEADER
-#else
-    #include <errno.h>
-#endif
-#ifdef POSIX_PTHREAD_HEADER
-    #include POSIX_PTHREAD_HEADER
-#else
-    #include <pthread.h>
-#endif
-#ifdef POSIX_SIGNAL_HEADER
-    #include POSIX_SIGNAL_HEADER
-#else
-    #include <signal.h>
-#endif
 #ifdef POSIX_TIME_HEADER
     #include POSIX_TIME_HEADER
 #else
@@ -98,70 +88,23 @@
 /*-----------------------------------------------------------*/
 
 /**
- * @brief Wraps an #IotThreadRoutine_t with a POSIX-compliant one.
+ * @brief Wraps an #IotThreadRoutine_t with a FreeRTOS-compliant one.
  *
- * @param[in] argument The value passed as `sigevent.sigev_value`.
+ * @param[in] argument The value passed as `TimerHandle_t`.
  */
-static void _timerExpirationWrapper( union sigval argument );
-
-/**
- * @brief Convert a relative timeout in milliseconds to an absolute timeout
- * represented as a struct timespec.
- *
- * This function is not included in iot_clock.h because it's platform-specific.
- * But it may be called by other POSIX platform files.
- * @param[in] timeoutMs The relative timeout.
- * @param[out] pOutput Where to store the resulting `timespec`.
- *
- * @return `true` if `timeoutMs` was successfully converted; `false` otherwise.
- */
-bool IotClock_TimeoutToTimespec( uint32_t timeoutMs,
-                                 struct timespec * pOutput );
-
-/*-----------------------------------------------------------*/
-
-static void _timerExpirationWrapper( union sigval argument )
+static void _timerExpirationWrapper( TimerHandle_t xTimer )
 {
-    IotTimer_t * pTimer = ( IotTimer_t * ) argument.sival_ptr;
+    IotTimer_t * pTimer = ( IotTimer_t * ) pvTimerGetTimerID( xTimer );
+
+    /* Schedule another timer if period is > 0 */
+    if( pTimer->periodMs > 0 )
+    {
+        xTimerChangePeriod( xTimer, pTimer->periodMs / portTICK_PERIOD_MS, portMAX_DELAY );
+        xTimerStart( xTimer, portMAX_DELAY );
+    }
 
     /* Call the wrapped thread routine. */
     pTimer->threadRoutine( pTimer->pArgument );
-}
-
-/*-----------------------------------------------------------*/
-
-bool IotClock_TimeoutToTimespec( uint32_t timeoutMs,
-                                 struct timespec * pOutput )
-{
-    bool status = true;
-    struct timespec systemTime = { 0 };
-
-    if( clock_gettime( CLOCK_REALTIME, &systemTime ) == 0 )
-    {
-        /* Add the nanoseconds value to the time. */
-        systemTime.tv_nsec += ( long ) ( ( timeoutMs % MILLISECONDS_PER_SECOND ) * NANOSECONDS_PER_MILLISECOND );
-
-        /* Check for overflow of nanoseconds value. */
-        if( systemTime.tv_nsec >= NANOSECONDS_PER_SECOND )
-        {
-            systemTime.tv_nsec -= NANOSECONDS_PER_SECOND;
-            systemTime.tv_sec++;
-        }
-
-        /* Add the seconds value to the timeout. */
-        systemTime.tv_sec += ( time_t ) ( timeoutMs / MILLISECONDS_PER_SECOND );
-
-        /* Set the output parameter. */
-        *pOutput = systemTime;
-    }
-    else
-    {
-        IotLogError( "Failed to read system time. errno=%d", errno );
-
-        status = false;
-    }
-
-    return status;
 }
 
 /*-----------------------------------------------------------*/
@@ -206,39 +149,16 @@ bool IotClock_GetTimestring( char * pBuffer,
 
 uint64_t IotClock_GetTimeMs( void )
 {
-    struct timespec currentTime = { 0 };
+    TickType_t ticks = xTaskGetTickCount();
 
-    if( clock_gettime( CLOCK_MONOTONIC, &currentTime ) != 0 )
-    {
-        /* This block should not be reached; log an error and abort if it is. */
-        IotLogError( "Failed to read time from CLOCK_MONOTONIC. errno=%d",
-                     errno );
-
-        abort();
-    }
-
-    return ( ( uint64_t ) currentTime.tv_sec ) * MILLISECONDS_PER_SECOND +
-           ( ( uint64_t ) currentTime.tv_nsec ) / NANOSECONDS_PER_MILLISECOND;
+    return ticks / portTICK_PERIOD_MS;
 }
 
 /*-----------------------------------------------------------*/
 
 void IotClock_SleepMs( uint32_t sleepTimeMs )
 {
-    /* Convert parameter to timespec. */
-    struct timespec sleepTime =
-    {
-        .tv_sec = sleepTimeMs / MILLISECONDS_PER_SECOND,
-        .tv_nsec = ( sleepTimeMs % MILLISECONDS_PER_SECOND ) * NANOSECONDS_PER_MILLISECOND
-    };
-
-    if( nanosleep( &sleepTime, NULL ) == -1 )
-    {
-        /* This block should not be reached; log an error and abort if it is. */
-        IotLogError( "Sleep failed. errno=%d.", errno );
-
-        abort();
-    }
+    vTaskDelay( sleepTimeMs / portTICK_PERIOD_MS );
 }
 
 /*-----------------------------------------------------------*/
@@ -248,29 +168,19 @@ bool IotClock_TimerCreate( IotTimer_t * pNewTimer,
                            void * pArgument )
 {
     bool status = UnityMalloc_AllocateResource();
-    struct sigevent expirationNotification =
-    {
-        .sigev_notify            = SIGEV_THREAD,
-        .sigev_signo             =                       0,
-        .sigev_value.sival_ptr   = pNewTimer,
-        .sigev_notify_function   = _timerExpirationWrapper,
-        .sigev_notify_attributes = NULL
-    };
 
     if( status == true )
     {
         IotLogDebug( "Creating new timer %p.", pNewTimer );
 
-        /* Set the timer expiration routine and argument. */
+        /* Set the timer expiration routione and argument. */
         pNewTimer->threadRoutine = expirationRoutine;
         pNewTimer->pArgument = pArgument;
 
-        /* Create the underlying POSIX timer. */
-        if( timer_create( CLOCK_REALTIME,
-                        &expirationNotification,
-                        &( pNewTimer->timer ) ) != 0 )
+        pNewTimer->timer = xTimerCreate( "iot", 1000 / portTICK_PERIOD_MS, pdFALSE, pNewTimer, _timerExpirationWrapper );
+        if( pNewTimer->timer == NULL )
         {
-            IotLogError( "Failed to create new timer %p. errno=%d.", pNewTimer, errno );
+            IotLogError( "Failed to create new timer %p.", pNewTimer );
             UnityMalloc_FreeResource();
             status = false;
         }
@@ -288,12 +198,10 @@ void IotClock_TimerDestroy( IotTimer_t * pTimer )
     /* Decrement the number of platform resources in use. */
     UnityMalloc_FreeResource();
 
-    /* Destroy the underlying POSIX timer. */
-    if( timer_delete( pTimer->timer ) != 0 )
+    if( xTimerDelete( pTimer, portMAX_DELAY ) != pdPASS )
     {
         /* This block should not be reached; log an error and abort if it is. */
-        IotLogError( "Failed to destroy timer %p. errno=%d.", pTimer, errno );
-
+        IotLogError( "Failed to destroy timer %p.", pTimer );
         abort();
     }
 }
@@ -305,39 +213,26 @@ bool IotClock_TimerArm( IotTimer_t * pTimer,
                         uint32_t periodMs )
 {
     bool status = true;
-    struct itimerspec timerExpiration =
-    {
-        .it_value    = { 0 },
-        .it_interval = { 0 }
-    };
 
     IotLogDebug( "Arming timer %p with timeout %lu and period %lu.",
                  pTimer,
                  relativeTimeoutMs,
                  periodMs );
 
-    /* Calculate the initial timer expiration. */
-    if( IotClock_TimeoutToTimespec( relativeTimeoutMs,
-                                    &( timerExpiration.it_value ) ) == false )
+    pTimer->periodMs = periodMs;
+
+    if( xTimerChangePeriod( pTimer->timer, relativeTimeoutMs / portTICK_PERIOD_MS, portMAX_DELAY ) != pdPASS )
     {
-        IotLogError( "Invalid relative timeout." );
+        IotLogError( "Unable to change timer period." );
 
         status = false;
     }
 
     if( status == true )
     {
-        /* Calculate the timer expiration period. */
-        if( periodMs > 0 )
+        if( xTimerStart( pTimer->timer, portMAX_DELAY ) != pdPASS )
         {
-            timerExpiration.it_interval.tv_sec = ( time_t ) ( periodMs / MILLISECONDS_PER_SECOND );
-            timerExpiration.it_interval.tv_nsec = ( long ) ( ( periodMs % MILLISECONDS_PER_SECOND ) * NANOSECONDS_PER_MILLISECOND );
-        }
-
-        /* Arm the underlying POSIX timer. */
-        if( timer_settime( pTimer->timer, TIMER_ABSTIME, &timerExpiration, NULL ) != 0 )
-        {
-            IotLogError( "Failed to arm timer %p. errno=%d.", pTimer, errno );
+            IotLogError( "Unable to start timer." );
 
             status = false;
         }

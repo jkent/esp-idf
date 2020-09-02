@@ -29,6 +29,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <freertos/timers.h>
 
 /**
  * @brief FreeRTOS Mutex/Semaphore types.
@@ -42,13 +43,12 @@ typedef struct _IotSystemMutex_t
 typedef SemaphoreHandle_t _IotSystemSemaphore_t;
 
 /**
- * @brief Represents an #IotTimer_t on POSIX systems.
- * 
- * TODO: port this to use freertos timers
+ * @brief Represents an #IotTimer_t on FreeRTOS systems.
  */
 typedef struct _IotSystemTimer
 {
-    timer_t timer;                           /**< @brief Underlying POSIX timer. */
+    TimerHandle_t timer;
+    uint32_t periodMs;
     void * pArgument;                        /**< @brief First argument to threadRoutine. */
     void ( * threadRoutine )( void * pArg ); /**< @brief Thread function to run on timer expiration. */
 } _IotSystemTimer_t;
