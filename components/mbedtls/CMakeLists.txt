@@ -3,7 +3,8 @@ idf_build_get_property(python PYTHON)
 
 idf_component_register(SRCS "esp_crt_bundle/esp_crt_bundle.c"
     INCLUDE_DIRS "port/include" "mbedtls/include" "esp_crt_bundle/include"
-    REQUIRES lwip
+    REQUIRES aws-iot-device-sdk-embedded-C
+             lwip
     PRIV_REQUIRES esp_pm soc
     )
 
@@ -55,7 +56,7 @@ set(ENABLE_TESTING CACHE BOOL OFF)
 set(ENABLE_PROGRAMS CACHE BOOL OFF)
 
 # Needed to for include_next includes to work from within mbedtls
-include_directories("${COMPONENT_DIR}/port/include")
+include_directories("${COMPONENT_DIR}/port/include" "${COMPONENT_DIR}/../aws-iot-device-sdk-embedded-C/port/include")
 
 # Import mbedtls library targets
 add_subdirectory(mbedtls)

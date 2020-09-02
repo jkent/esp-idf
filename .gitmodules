@@ -90,3 +90,7 @@
 [submodule "components/cmock/CMock"]
 	path = components/cmock/CMock
 	url = ../../ThrowTheSwitch/CMock.git
+
+[submodule "components/aws-iot-device-sdk-embedded-C/aws-iot-device-sdk-embedded-C"]
+	path = components/aws-iot-device-sdk-embedded-C/aws-iot-device-sdk-embedded-C
+	url = https://github.com/aws/aws-iot-device-sdk-embedded-C.git
