@@ -14,8 +14,7 @@ set(include_dirs ./port/include
                  ${SDK_DIR}/ports/common/include
 )
 
-set(priv_include_dirs "."
-                      ${SDK_DIR}/libraries/aws/defender/src/private
+set(priv_include_dirs ${SDK_DIR}/libraries/aws/defender/src/private
                       ${SDK_DIR}/libraries/aws/jobs/src/private
                       ${SDK_DIR}/libraries/aws/provisioning/src/private
                       ${SDK_DIR}/libraries/aws/shadow/src/private

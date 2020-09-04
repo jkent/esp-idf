@@ -198,7 +198,7 @@ void IotClock_TimerDestroy( IotTimer_t * pTimer )
     /* Decrement the number of platform resources in use. */
     UnityMalloc_FreeResource();
 
-    if( xTimerDelete( pTimer, portMAX_DELAY ) != pdPASS )
+    if( xTimerDelete( pTimer->timer, portMAX_DELAY ) != pdPASS )
     {
         /* This block should not be reached; log an error and abort if it is. */
         IotLogError( "Failed to destroy timer %p.", pTimer );

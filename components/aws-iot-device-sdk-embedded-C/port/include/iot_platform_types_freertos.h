@@ -40,7 +40,10 @@ typedef struct _IotSystemMutex_t
     SemaphoreHandle_t mutex;
 } _IotSystemMutex_t;
 
-typedef SemaphoreHandle_t _IotSystemSemaphore_t;
+typedef struct _IotSystemSemaphore_t
+{
+    SemaphoreHandle_t semaphore;
+} _IotSystemSemaphore_t;
 
 /**
  * @brief Represents an #IotTimer_t on FreeRTOS systems.

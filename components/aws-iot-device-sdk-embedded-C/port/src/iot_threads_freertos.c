@@ -88,11 +88,59 @@
 
 /*-----------------------------------------------------------*/
 
+/**
+ * @brief Holds information about an active detached thread.
+ */
+typedef struct _threadInfo
+{
+    void * pArgument;                 /**< @brief First argument to `threadRoutine`. */
+    IotThreadRoutine_t threadRoutine; /**< @brief Thread function to run. */
+} _threadInfo_t;
+
+/*-----------------------------------------------------------*/
+
+/**
+ * @brief Wraps an #IotThreadRoutine_t with a FreeRTOS-compliant one.
+ *
+ * @param[in] pArgument The value passed as `pvParameters` to `xTaskCreate`.
+ */
+static void _threadRoutineWrapper( void * pvParameters )
+{
+    _threadInfo_t * pThreadInfo = ( _threadInfo_t * ) pvParameters;
+
+    /* Read thread routine and argument, then free thread info. */
+    IotThreadRoutine_t threadRoutine = pThreadInfo->threadRoutine;
+    void * pThreadRoutineArgument = pThreadInfo->pArgument;
+    IotThreads_Free( pThreadInfo );
+
+    /* Run the thread routine. */
+    threadRoutine( pThreadRoutineArgument );
+
+    vTaskDelete( NULL );
+}
+
+/*-----------------------------------------------------------*/
+
 bool Iot_CreateDetachedThread( IotThreadRoutine_t threadRoutine,
                                void * pArgument,
                                int32_t priority,
                                size_t stackSize )
 {
+    IOT_FUNCTION_ENTRY( bool, true );
+    _threadInfo_t * pThreadInfo = NULL;
+
+    /* Allocate memory for the new thread info. */
+    pThreadInfo = IotThreads_Malloc( sizeof( _threadInfo_t ) );
+
+    if( pThreadInfo == NULL )
+    {
+        IotLogError( "Failed to allocate memory for new thread." );
+        IOT_SET_AND_GOTO_CLEANUP( false );
+    }
+
+    pThreadInfo->threadRoutine = threadRoutine;
+    pThreadInfo->pArgument = pArgument;
+
     if( stackSize == IOT_THREAD_DEFAULT_STACK_SIZE || priority == IOT_THREAD_IGNORE_STACK_SIZE )
     {
         stackSize = 2048;
@@ -103,10 +151,20 @@ bool Iot_CreateDetachedThread( IotThreadRoutine_t threadRoutine,
         priority = tskIDLE_PRIORITY + 1;
     }
 
-    bool status = xTaskCreate(threadRoutine, "iot", stackSize, pArgument,
-                              priority, NULL) == pdTRUE;
+    status = xTaskCreate(_threadRoutineWrapper, "iot", stackSize, pThreadInfo, priority, NULL) == pdPASS;
 
-    return status;
+    IOT_FUNCTION_CLEANUP_BEGIN();
+
+    /* Clean up on error. */
+    if( status == false )
+    {
+        if( pThreadInfo != NULL )
+        {
+            IotThreads_Free( pThreadInfo );
+        }
+    }
+
+    IOT_FUNCTION_CLEANUP_END();
 }
 
 /*-----------------------------------------------------------*/
@@ -114,14 +172,11 @@ bool Iot_CreateDetachedThread( IotThreadRoutine_t threadRoutine,
 bool IotMutex_Create( IotMutex_t * pNewMutex,
                       bool recursive )
 {
-    IOT_FUNCTION_ENTRY( bool, true );
-
     /* Increment the number of platform resources in use. */
-    status = UnityMalloc_AllocateResource();
+    bool status = UnityMalloc_AllocateResource();
 
     if( status == true )
     {
-        pNewMutex = IotThreads_Malloc(sizeof(IotMutex_t));
         pNewMutex->recursive = recursive;
 
         if( recursive == true )
@@ -137,13 +192,11 @@ bool IotMutex_Create( IotMutex_t * pNewMutex,
             IotLogError( "Failed to initialize mutex." );
 
             UnityMalloc_FreeResource();
-            IotThreads_Free( pNewMutex );
-            IOT_SET_AND_GOTO_CLEANUP( false );
+            status = false;
         }
     }
 
-    IOT_FUNCTION_CLEANUP_BEGIN();
-    IOT_FUNCTION_CLEANUP_END();
+    return status;
 }
 
 /*-----------------------------------------------------------*/
@@ -154,14 +207,13 @@ void IotMutex_Destroy( IotMutex_t * pMutex )
     UnityMalloc_FreeResource();
 
     vSemaphoreDelete( pMutex->mutex );
-    IotThreads_Free( pMutex );
 }
 
 /*-----------------------------------------------------------*/
 
 void IotMutex_Lock( IotMutex_t * pMutex )
 {
-    if( pMutex->recursive )
+    if( pMutex->recursive == true )
     {
         xSemaphoreTakeRecursive( pMutex->mutex, portMAX_DELAY );
     }
@@ -175,7 +227,7 @@ void IotMutex_Lock( IotMutex_t * pMutex )
 
 bool IotMutex_TryLock( IotMutex_t * pMutex )
 {
-    if( pMutex->recursive )
+    if( pMutex->recursive == true )
     {
         return xSemaphoreTakeRecursive( pMutex->mutex, 0 );
     }
@@ -189,7 +241,7 @@ bool IotMutex_TryLock( IotMutex_t * pMutex )
 
 void IotMutex_Unlock( IotMutex_t * pMutex )
 {
-    if( pMutex->recursive )
+    if( pMutex->recursive == true )
     {
         xSemaphoreGiveRecursive( pMutex->mutex );
     }
@@ -209,9 +261,9 @@ bool IotSemaphore_Create( IotSemaphore_t * pNewSemaphore,
 
     if( status == true )
     {
-        pNewSemaphore = xQueueCreateCountingSemaphore( maxValue, initialValue );
+        pNewSemaphore->semaphore = xQueueCreateCountingSemaphore( maxValue, initialValue );
 
-        if( pNewSemaphore == NULL )
+        if( pNewSemaphore->semaphore == NULL )
         {
             IotLogError( "Failed to create new semaphore." );
 
@@ -227,7 +279,7 @@ bool IotSemaphore_Create( IotSemaphore_t * pNewSemaphore,
 
 uint32_t IotSemaphore_GetCount( IotSemaphore_t * pSemaphore )
 {
-    return ( uint32_t ) uxSemaphoreGetCount( pSemaphore );
+    return ( uint32_t ) uxSemaphoreGetCount( pSemaphore->semaphore );
 }
 
 /*-----------------------------------------------------------*/
@@ -237,21 +289,21 @@ void IotSemaphore_Destroy( IotSemaphore_t * pSemaphore )
     /* Decrement the number of platform resources in use. */
     UnityMalloc_FreeResource();
 
-    vSemaphoreDelete( pSemaphore );
+    vSemaphoreDelete( pSemaphore->semaphore );
 }
 
 /*-----------------------------------------------------------*/
 
 void IotSemaphore_Wait( IotSemaphore_t * pSemaphore )
 {
-    xSemaphoreTake( pSemaphore, portMAX_DELAY );
+    xSemaphoreTake( pSemaphore->semaphore, portMAX_DELAY );
 }
 
 /*-----------------------------------------------------------*/
 
 bool IotSemaphore_TryWait( IotSemaphore_t * pSemaphore )
 {
-    return xSemaphoreTake( pSemaphore, portMAX_DELAY ) == pdTRUE;
+    return xSemaphoreTake( pSemaphore->semaphore, portMAX_DELAY ) == pdTRUE;
 }
 
 /*-----------------------------------------------------------*/
@@ -259,14 +311,14 @@ bool IotSemaphore_TryWait( IotSemaphore_t * pSemaphore )
 bool IotSemaphore_TimedWait( IotSemaphore_t * pSemaphore,
                              uint32_t timeoutMs )
 {
-    return xSemaphoreTake( pSemaphore, timeoutMs / portTICK_PERIOD_MS ) == pdTRUE;
+    return xSemaphoreTake( pSemaphore->semaphore, timeoutMs / portTICK_PERIOD_MS ) == pdTRUE;
 }
 
 /*-----------------------------------------------------------*/
 
 void IotSemaphore_Post( IotSemaphore_t * pSemaphore )
 {
-    xSemaphoreGive( pSemaphore );
+    xSemaphoreGive( pSemaphore->semaphore );
 }
 
 /*-----------------------------------------------------------*/
