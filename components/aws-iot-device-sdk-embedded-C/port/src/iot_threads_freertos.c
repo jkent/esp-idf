@@ -143,7 +143,7 @@ bool Iot_CreateDetachedThread( IotThreadRoutine_t threadRoutine,
 
     if( stackSize == IOT_THREAD_DEFAULT_STACK_SIZE || priority == IOT_THREAD_IGNORE_STACK_SIZE )
     {
-        stackSize = 2048;
+        stackSize = 4096;
     }
 
     if( priority == IOT_THREAD_DEFAULT_PRIORITY || priority == IOT_THREAD_IGNORE_PRIORITY )

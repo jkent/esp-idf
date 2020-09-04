@@ -19,78 +19,10 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/* This file contains configuration settings for the demos. */
-
 #ifndef IOT_CONFIG_H_
 #define IOT_CONFIG_H_
 
-/* Server endpoints used for the demos. May be overridden with command line
- * options at runtime. */
-#define IOT_DEMO_SECURED_CONNECTION    ( true ) /* Command line: -s (secured) or -u (unsecured) */
-#define IOT_DEMO_SERVER                ""       /* Command line: -h */
-#define IOT_DEMO_PORT                  ( 443 )  /* Command line: -p */
-
-/* Credential paths. May be overridden with command line options at runtime. */
-#define IOT_DEMO_ROOT_CA               "" /* Command line: -r */
-#define IOT_DEMO_CLIENT_CERT           "" /* Command line: -c */
-#define IOT_DEMO_PRIVATE_KEY           "" /* Command line: -k */
-#define IOT_DEMO_USER_NAME             "" /* Command line: -m */
-#define IOT_DEMO_PASSWORD              "" /* Command line: -w */
-
-/* MQTT client identifier (MQTT demo only) or AWS IoT Thing Name. May be set at
- * runtime with the command line option -i. Identifiers are optional for the
- * MQTT demo, but required for demos requiring a Thing Name. (The MQTT demo will
- * generate a unique identifier if no identifier is given). If a specific Thing Name
- * is required please define the following line:
- * #define IOT_DEMO_IDENTIFIER         "" */
-
-/* MQTT demo configuration. The demo publishes bursts of messages. */
-#define IOT_DEMO_MQTT_PUBLISH_BURST_COUNT    ( 10 )    /* Number of message bursts. */
-#define IOT_DEMO_MQTT_PUBLISH_BURST_SIZE     ( 10 )    /* Number of messages published in each burst. */
-
-/* MQTT library configuration. */
-#ifndef IOT_MQTT_ENABLE_SERIALIZER_OVERRIDES
-    #define IOT_MQTT_ENABLE_SERIALIZER_OVERRIDES    ( 0 )
-#endif
-
-/* Shadow demo configuration. The demo publishes periodic Shadow updates and responds
- * to changing Shadows. */
-#define AWS_IOT_DEMO_SHADOW_UPDATE_COUNT                                  ( 20 )   /* Number of updates to publish. */
-#define AWS_IOT_DEMO_SHADOW_UPDATE_PERIOD_MS                              ( 3000 ) /* Period of Shadow updates. */
-
-/**
- * The Certificate-Signing Request string to use for CSR-based Provisioning demo app.
- */
-#define AWS_IOT_DEMO_PROVISIONING_CSR_PEM                                 ""
-
-/**
- * The name for the fleet provisioning template that will be used for provisioning
- * for registering thing in the Provisioning demo applications.
- */
-#define AWS_IOT_DEMO_PROVISIONING_TEMPLATE_NAME                           ""
-
-/**
- * List of parameters that will be used for provisioning in the demo application.
- * There are 2 requirements for passing parameters to the Provisioning demo:
- * 1. One parameter is a "SerialNumber". The AWS IoT console generates a provisioning template
- * that by default uses a "SerialNumber" device parameter for creating a Thing resource. Also, the
- * setup instructions in the API reference documentation of Fleet Provisioning
- * (https://docs.aws.amazon.com/freertos/latest/lib-ref/c-sdk/provisioning/provisioning_tests.html
- * #provisioning_system_tests_setup)
- * provide an AWS CLI command example for creating a provisioning template, in which the template
- * JSON string contains the "SerialNumber" parameter.
- * 2. A second parameter which is configurable for both the name and value. The example provisioning
- * JSON string in the demo setup instructions contains "DeviceLocation" as the default parameter name.
- * If a different parameter name is used, make SURE to update the provisioning template on the AWS IoT Console!
- */
-#define AWS_IOT_DEMO_PROVISIONING_PARAMETER_SERIAL_NUMBER_NAME            "SerialNumber"
-#define AWS_IOT_DEMO_PROVISIONING_PARAMETER_SERIAL_NUMBER_NAME_LENGTH     sizeof( AWS_IOT_DEMO_PROVISIONING_PARAMETER_SERIAL_NUMBER_NAME ) - 1
-#define AWS_IOT_DEMO_PROVISIONING_PARAMETER_SERIAL_NUMBER_VALUE           ""
-#define AWS_IOT_DEMO_PROVISIONING_PARAMETER_SERIAL_NUMBER_VALUE_LENGTH    sizeof( AWS_IOT_DEMO_PROVISIONING_PARAMETER_SERIAL_NUMBER_VALUE ) - 1
-#define AWS_IOT_DEMO_PROVISIONING_PARAMETER_2_NAME                        ""
-#define AWS_IOT_DEMO_PROVISIONING_PARAMETER_2_NAME_LENGTH                 sizeof( AWS_IOT_DEMO_PROVISIONING_PARAMETER_2_NAME ) - 1
-#define AWS_IOT_DEMO_PROVISIONING_PARAMETER_2_VALUE                       ""
-#define AWS_IOT_DEMO_PROVISIONING_PARAMETER_2_VALUE_LENGTH                sizeof( AWS_IOT_DEMO_PROVISIONING_PARAMETER_2_VALUE ) - 1
+#define AWS_IOT_MQTT_ENABLE_METRICS ( 0 )
 
 /* Enable asserts in the libraries. */
 #define IOT_CONTAINERS_ENABLE_ASSERTS                                     ( 1 )
