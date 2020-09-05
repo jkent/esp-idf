@@ -30,6 +30,8 @@
 /* Standard includes. */
 #include <stdlib.h>
 
+#include "esp_log.h"
+
 /* FreeRTOS includes. */
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -71,23 +73,6 @@
 /*-----------------------------------------------------------*/
 
 /**
- * @brief The format of timestrings printed in logs.
- *
- * For more information on timestring formats, see [this link.]
- * (http://pubs.opengroup.org/onlinepubs/9699919799/functions/strftime.html)
- */
-#define TIMESTRING_FORMAT              ( "%F %R:%S" )
-
-/*
- * Time conversion constants.
- */
-#define NANOSECONDS_PER_SECOND         ( 1000000000 ) /**< @brief Nanoseconds per second. */
-#define NANOSECONDS_PER_MILLISECOND    ( 1000000 )    /**< @brief Nanoseconds per millisecond. */
-#define MILLISECONDS_PER_SECOND        ( 1000 )       /**< @brief Milliseconds per second. */
-
-/*-----------------------------------------------------------*/
-
-/**
  * @brief Wraps an #IotThreadRoutine_t with a FreeRTOS-compliant one.
  *
  * @param[in] argument The value passed as `TimerHandle_t`.
@@ -113,36 +98,11 @@ bool IotClock_GetTimestring( char * pBuffer,
                              size_t bufferSize,
                              size_t * pTimestringLength )
 {
-    bool status = true;
-    const time_t unixTime = time( NULL );
-    struct tm localTime = { 0 };
-    size_t timestringLength = 0;
+    uint32_t timestamp = esp_log_timestamp();
 
-    /* localtime_r is the thread-safe variant of localtime. Its return value
-     * should be the pointer to the localTime struct. */
-    if( localtime_r( &unixTime, &localTime ) != &localTime )
-    {
-        status = false;
-    }
+    *pTimestringLength = snprintf(pBuffer, bufferSize, "%u", timestamp);
 
-    if( status == true )
-    {
-        /* Convert the localTime struct to a string. */
-        timestringLength = strftime( pBuffer, bufferSize, TIMESTRING_FORMAT, &localTime );
-
-        /* Check for error from strftime. */
-        if( timestringLength == 0 )
-        {
-            status = false;
-        }
-        else
-        {
-            /* Set the output parameter. */
-            *pTimestringLength = timestringLength;
-        }
-    }
-
-    return status;
+    return true;
 }
 
 /*-----------------------------------------------------------*/
