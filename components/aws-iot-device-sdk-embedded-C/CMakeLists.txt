@@ -50,7 +50,6 @@ set(srcs
          ${SDK_DIR}/libraries/aws/shadow/src/aws_iot_shadow_subscription.c
 
          ${SDK_DIR}/libraries/standard/common/src/iot_init.c
-         ${SDK_DIR}/libraries/standard/common/src/iot_logging.c
          ${SDK_DIR}/libraries/standard/common/src/iot_static_memory_common.c
          ${SDK_DIR}/libraries/standard/common/src/iot_taskpool.c
          ${SDK_DIR}/libraries/standard/common/src/iot_taskpool_static_memory.c
@@ -73,6 +72,7 @@ set(srcs
          ${SDK_DIR}/ports/common/src/iot_network_metrics.c
 
          port/src/iot_clock_freertos.c
+         port/src/iot_logging.c
          port/src/iot_threads_freertos.c
 )
 
