@@ -24,8 +24,8 @@
  * @brief Template definitions of platform layer types.
  */
 
-#ifndef IOT_PLATFORM_TYPES_TEMPLATE_H_
-#define IOT_PLATFORM_TYPES_TEMPLATE_H_
+#ifndef IOT_PLATFORM_TYPES_FREERTOS_H_
+#define IOT_PLATFORM_TYPES_FREERTOS_H_
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
@@ -82,4 +82,4 @@ typedef struct IotNetworkCredentials * _IotNetworkCredentials_t;
  */
 typedef struct _networkConnection * _IotNetworkConnection_t;
 
-#endif /* ifndef IOT_PLATFORM_TYPES_TEMPLATE_H_ */
+#endif /* ifndef IOT_PLATFORM_TYPES_FREERTOS_H_ */
