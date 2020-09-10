@@ -68,11 +68,11 @@ set(srcs
          ${SDK_DIR}/libraries/standard/serializer/src/cbor/iot_serializer_tinycbor_encoder.c
          ${SDK_DIR}/libraries/standard/serializer/src/iot_serializer_static_memory.c
 
-         ${SDK_DIR}/ports/common/src/iot_network_mbedtls.c
          ${SDK_DIR}/ports/common/src/iot_network_metrics.c
 
          port/src/iot_clock_freertos.c
          port/src/iot_logging.c
+         port/src/iot_network_mbedtls.c
          port/src/iot_threads_freertos.c
 )
 
